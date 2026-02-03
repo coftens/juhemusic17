@@ -133,6 +133,7 @@ class _MePageState extends State<MePage> {
   }
 
   double _sheetRadius = 18.0;
+  double _sheetExtent = 0.62; // Track sheet extent for profile scaling
 
   @override
   Widget build(BuildContext context) {
@@ -171,48 +172,71 @@ class _MePageState extends State<MePage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // ... (Avatar and other widgets)
-                GestureDetector(
-                  onTap: _pickAvatar,
-                  child: Container(
-                    width: 78,
-                    height: 78,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.35), width: 2),
+                // Profile section with scaling animation
+                Builder(builder: (context) {
+                  // Scale from 1.0 (sheet at min 0.38) to 0.7 (sheet at max 1.0)
+                  final scale = 1.0 - ((_sheetExtent - 0.38) / (1.0 - 0.38)) * 0.3;
+                  final opacity = scale.clamp(0.0, 1.0);
+                  return Transform.scale(
+                    scale: scale.clamp(0.7, 1.0),
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: _pickAvatar,
+                            child: Container(
+                              width: 78,
+                              height: 78,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.95),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.35), width: 2),
+                              ),
+                              child: ClipOval(
+                                child: AuthSession.instance.user?.avatarUrl.isNotEmpty == true
+                                    ? CachedCoverImage(
+                                        imageUrl: AuthSession.instance.user!.avatarUrl,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : const Icon(Icons.person, size: 42, color: Colors.black54),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            AuthSession.instance.user?.username ?? 'deoth5',
+                            style: t.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 6),
+                          Text('最近 & 喜欢（云端同步已开启）', style: t.bodyMedium?.copyWith(color: Colors.white70, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 14),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _QuickBtn(icon: Icons.history_rounded, label: '最近', onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => LibraryPlaylistPage(title: '最近播放', items: _recents)),
+                                  );
+                                }),
+                                _QuickBtn(icon: Icons.favorite_rounded, label: '喜欢', onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => LibraryPlaylistPage(title: '我喜欢的音乐', items: _favorites)),
+                                  );
+                                }),
+                                _QuickBtn(icon: Icons.checkroom_rounded, label: '装扮', onTap: () {}),
+                                _QuickBtn(icon: Icons.settings_rounded, label: '设置', onTap: () {}),
+                                _QuickBtn(icon: Icons.grid_view_rounded, label: '', onTap: () {}),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: ClipOval(
-                      child: AuthSession.instance.user?.avatarUrl.isNotEmpty == true
-                          ? CachedCoverImage(
-                              imageUrl: AuthSession.instance.user!.avatarUrl,
-                              fit: BoxFit.cover,
-                            )
-                          : const Icon(Icons.person, size: 42, color: Colors.black54),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  AuthSession.instance.user?.username ?? 'deoth5',
-                  style: t.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 6),
-                Text('最近 & 喜欢（云端同步已开启）', style: t.bodyMedium?.copyWith(color: Colors.white70, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 14),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      _QuickBtn(icon: Icons.history_rounded, label: '最近'),
-                      _QuickBtn(icon: Icons.favorite_rounded, label: '喜欢'),
-                      _QuickBtn(icon: Icons.checkroom_rounded, label: '装扮'),
-                      _QuickBtn(icon: Icons.settings_rounded, label: '设置'),
-                      _QuickBtn(icon: Icons.grid_view_rounded, label: ''),
-                    ],
-                  ),
-                ),
+                  );
+                }),
                 const Spacer(),
               ],
             ),
@@ -223,8 +247,11 @@ class _MePageState extends State<MePage> {
               final extent = notification.extent;
               // Animate radius to 0 when near top (e.g. > 0.95)
               final newRadius = extent > 0.95 ? 0.0 : 18.0;
-              if (newRadius != _sheetRadius) {
-                setState(() => _sheetRadius = newRadius);
+              if (newRadius != _sheetRadius || extent != _sheetExtent) {
+                setState(() {
+                  _sheetRadius = newRadius;
+                  _sheetExtent = extent;
+                });
               }
               return true;
             },
@@ -393,30 +420,34 @@ class _Backdrop extends StatelessWidget {
 }
 
 class _QuickBtn extends StatelessWidget {
-  const _QuickBtn({required this.icon, required this.label});
+  const _QuickBtn({required this.icon, required this.label, this.onTap});
 
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 56,
-          height: 44,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.16),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.22)),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.16),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.22)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
-          child: Icon(icon, color: Colors.white, size: 22),
-        ),
-        if (label.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white70, fontWeight: FontWeight.w600)),
+          if (label.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white70, fontWeight: FontWeight.w600)),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
