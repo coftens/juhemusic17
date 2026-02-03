@@ -19,22 +19,14 @@ class NowPlayingPage extends StatefulWidget {
 
 class _NowPlayingPageState extends State<NowPlayingPage> {
   final _svc = PlayerService.instance;
-  static int _debugUICount = 0; // DEBUG
 
   String _coverUrl = '';
 
   @override
   void initState() {
     super.initState();
-    _debugUICount++;
     _coverUrl = widget.item?.coverUrl ?? '';
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStart());
-  }
-
-  @override
-  void dispose() {
-    _debugUICount--;
-    super.dispose();
   }
 
   Future<void> _maybeStart() async {
@@ -115,71 +107,46 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         final it = _svc.current ?? current;
         final dur = _svc.duration;
         final pos = _svc.position;
-        return Stack(
-          children: [
-            VinylPlayerPage(
-              title: it.name,
-              artist: it.artist,
-              shareUrl: it.shareUrl,
-              index: _svc.index,
-              cover: _coverProvider(),
-              playing: _svc.playing,
-              position: pos,
-              duration: dur == Duration.zero ? const Duration(minutes: 3, seconds: 31) : dur,
-              selectedQuality: _svc.quality,
-              availableQualities: _svc.qualities,
-              qualitiesLoading: _svc.qualitiesLoading,
-              favorite: _svc.isFavorite,
-              onToggleFavorite: () => _svc.toggleFavoriteCurrent(),
-              onTogglePlay: _togglePlay,
-              onPrev: () {
-                if (_svc.hasPrev) {
-                  _svc.prev();
-                } else {
-                  _svc.seek(Duration.zero);
-                }
-              },
-              onNext: () {
-                if (_svc.hasNext) {
-                  _svc.next();
-                } else {
-                  final d = _svc.duration;
-                  if (d != Duration.zero) {
-                    _svc.seek(d);
-                  }
-                }
-              },
-              onOpenQueue: () => _openQueue(context),
-              onSeek: (d) => _svc.seek(d),
-              onSelectQuality: (q) => _switchQuality(q),
-            ),
-            Positioned(
-              left: 10,
-              top: MediaQuery.of(context).padding.top + 10,
-              child: IgnorePointer(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.85),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'DEBUG: UI=\$_debugUICount | Player=\${PlayerService.debugPlayerCount}',
-                    style: const TextStyle(
-                      color: Colors.white, 
-                      fontSize: 10, 
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        return VinylPlayerPage(
+          title: it.name,
+          artist: it.artist,
+          shareUrl: it.shareUrl,
+          index: _svc.index,
+          cover: _coverProvider(),
+          playing: _svc.playing,
+          position: pos,
+          duration: dur == Duration.zero ? const Duration(minutes: 3, seconds: 31) : dur,
+          selectedQuality: _svc.quality,
+          availableQualities: _svc.qualities,
+          qualitiesLoading: _svc.qualitiesLoading,
+          favorite: _svc.isFavorite,
+          onToggleFavorite: () => _svc.toggleFavoriteCurrent(),
+          onTogglePlay: _togglePlay,
+          onPrev: () {
+            if (_svc.hasPrev) {
+              _svc.prev();
+            } else {
+              _svc.seek(Duration.zero);
+            }
+          },
+          onNext: () {
+            if (_svc.hasNext) {
+              _svc.next();
+            } else {
+              final d = _svc.duration;
+              if (d != Duration.zero) {
+                _svc.seek(d);
+              }
+            }
+          },
+          onOpenQueue: () => _openQueue(context),
+          onSeek: (d) => _svc.seek(d),
+          onSelectQuality: (q) => _switchQuality(q),
         );
       },
     );
   }
+
 
   void _openQueue(BuildContext context) {
     // Auto-scroll to current song

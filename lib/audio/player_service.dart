@@ -1,14 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 
 import '../api/php_api_client.dart';
 import '../storage/user_library.dart';
@@ -60,9 +56,7 @@ class QueueContext {
 
 class PlayerService extends ChangeNotifier {
   PlayerService._();
-  
-  static int debugPlayerCount = 0; // DEBUG ONLY
-  
+
   static final instance = PlayerService._();
 
   final _api = PhpApiClient();
@@ -196,9 +190,7 @@ class PlayerService extends ChangeNotifier {
 
   void _ensurePlayer() {
     if (_player != null) return;
-    if (_player != null) return;
     final p = AudioPlayer();
-    debugPlayerCount++; // DEBUG: Count new player instances
     _player = p;
     _subs.add(
       p.positionStream.listen((pos) {
@@ -363,16 +355,7 @@ class PlayerService extends ChangeNotifier {
       artUri: cur.coverUrl.isNotEmpty ? Uri.tryParse(cur.coverUrl) : null,
       extras: {'platform': cur.platform},
     );
-    
-    // Implement Local Caching Logic
-    try {
-      final cachePath = await _getCacheFile(picked);
-      final source = LockCachingAudioSource(Uri.parse(picked), tag: tag, cacheFile: File(cachePath));
-      await _player!.setAudioSource(source);
-    } catch (_) {
-      // Fallback if caching fails
-      await _player!.setAudioSource(AudioSource.uri(Uri.parse(picked), tag: tag));
-    }
+    await _player!.setAudioSource(AudioSource.uri(Uri.parse(picked), tag: tag));
     if (pos > Duration.zero) await _player!.seek(pos);
     await _player!.play();
     notifyListeners();
@@ -643,8 +626,7 @@ class PlayerService extends ChangeNotifier {
       
       // print('Attempting setAudioSource: $picked');
       try {
-        final cachePath = await _getCacheFile(picked);
-        final source = LockCachingAudioSource(Uri.parse(picked), tag: tag, cacheFile: File(cachePath));
+        final source = AudioSource.uri(Uri.parse(picked), tag: tag);
         await _player!.setAudioSource(source);
       } catch (e) {
         // print('Audio setUrl error ($picked): $e');
@@ -1010,17 +992,4 @@ class PlayerService extends ChangeNotifier {
   }
   
   // ==================== v5.0 队列管理方法结束 ====================
-  
-  // v5.36 Cache File Helper
-  Future<String> _getCacheFile(String url) async {
-    final dir = await getTemporaryDirectory();
-    final cacheDir = Directory('${dir.path}/audio_cache');
-    if (!cacheDir.existsSync()) {
-      cacheDir.createSync(recursive: true);
-    }
-    final name = md5.convert(utf8.encode(url)).toString();
-    // Guess extension or default to .mp3/.flac? lockCachingAudioSource handles it, 
-    // but just in case we append .cache
-    return '${cacheDir.path}/$name.cache';
-  }
 }
