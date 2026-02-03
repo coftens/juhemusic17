@@ -7,6 +7,7 @@ import '../player/mini_player_bar.dart';
 import '../search/search_page.dart';
 import '../user/me_page.dart';
 import 'setup_page.dart';
+import 'update_checker.dart';
 import 'widgets/juhe_bottom_nav.dart';
 
 class AppShell extends StatefulWidget {
@@ -34,6 +35,11 @@ class _AppShellState extends State<AppShell> {
     _idx = widget.initialTab.clamp(0, 3);
     AppTabs.index.value = _idx;
     AppTabs.index.addListener(_syncFromNotifier);
+    
+    // Check for updates after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateChecker.checkAndPrompt(context);
+    });
   }
 
   @override

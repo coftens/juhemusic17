@@ -123,6 +123,28 @@ class PhpApiClient {
     return (data['avatar_url'] as String?) ?? '';
   }
 
+  /// Check for app updates. Returns version info from backend.
+  /// Example response: { "code": 200, "data": { "version": "7.05", "download_url": "https://...", "force": false, "changelog": "..." } }
+  Future<VersionInfo> checkVersion() async {
+    try {
+      final j = await rawGet('/api/version.php', const {});
+      final code = (j['code'] as num?)?.toInt() ?? 500;
+      if (code != 200) {
+        return VersionInfo(version: '', downloadUrl: '', force: false, changelog: '');
+      }
+      final data = (j['data'] as Map?)?.cast<String, dynamic>() ?? const {};
+      return VersionInfo(
+        version: (data['version'] as String?) ?? '',
+        downloadUrl: (data['download_url'] as String?) ?? '',
+        force: (data['force'] as bool?) ?? false,
+        changelog: (data['changelog'] as String?) ?? '',
+      );
+    } catch (_) {
+      // Silently fail version check (network issues, etc.)
+      return VersionInfo(version: '', downloadUrl: '', force: false, changelog: '');
+    }
+  }
+
   Future<List<SearchItem>> search({
     required String keyword,
     String platform = 'all',
@@ -644,3 +666,18 @@ class QualityUrl {
     );
   }
 }
+
+class VersionInfo {
+  VersionInfo({
+    required this.version,
+    required this.downloadUrl,
+    required this.force,
+    required this.changelog,
+  });
+
+  final String version;
+  final String downloadUrl;
+  final bool force;
+  final String changelog;
+}
+
