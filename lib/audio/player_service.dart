@@ -216,6 +216,82 @@ class PlayerService extends ChangeNotifier {
     );
     _subs.add(p.playerStateStream.listen(_onPlayerState));
     _subs.add(p.processingStateStream.listen((_) => notifyListeners()));
+
+    // Intercept system navigation (Next/Prev buttons)
+    _subs.add(p.currentIndexStream.listen((idx) {
+      if (idx == null) return;
+      // Identify logical role of current index based on neighbors
+      // The playlist structure is [Prev?, Current, Next?]
+      // initialIndex tells us where 'Current' is.
+      // We can infer:
+      // If we jumped to index < initialIndex (usually 0 when initial was 1) -> Prev
+      // If we jumped to index > initialIndex (usually 1 or 2) -> Next
+      // BUT: We don't store 'initialIndex' here. 
+      // Simplified heuristic:
+      // If we see index change, check if it matches logical Prev or Next actions.
+      
+      // Since we rebuild the source on every playItem, we need a way to know "What is the intended Current index?"
+      // Ideally, we just check: 
+      // If index == 0 and hasPrev was true -> Prev
+      // If index == last and hasNext was true -> Next
+      
+      // Better approach:
+      // In playItem, we set the source. 
+      // If user clicks Next, index increments.
+      // If user clicks Prev, index decrements.
+      
+      // We need to guard against the initial event (which matches the target).
+      // The simplest way:
+      // If we are at index 0 and we KNOW we put a Prev item at 0 (meaning Current was at 1), then it's a Prev action.
+      // But we don't know the structure here easily.
+      
+      // Strategy:
+      // We will look at the sequence.
+      // But actually, just_audio gives us the effective index.
+      // Let's rely on `_player.audioSource.sequence`.
+      
+      final seq = p.audioSource?.sequence;
+      if (seq == null || seq.isEmpty) return;
+      
+      // Find 'Current' MediaItem ID (shareUrl) in the sequence to match strictly?
+      // No, we used duplicates.
+      
+      // Let's handle this in `_onIndexChanged` or similar.
+      // For now, let's implement a robust check:
+      // If we drift from the "center" (Current), we navigate.
+      
+      // However, initial load sends an event. We must ignore that.
+      // Doing this logic here is tricky without state.
+      // Let's defer to a separate method `_onIndexChanged(idx)`.
+      _onIndexChanged(idx);
+    }));
+  }
+  
+  void _onIndexChanged(int idx) {
+    if (_qualitiesLoading) return; // Ignore changes during initial load/setup
+    
+    // We expect the player to be at:
+    // Index 0 if !hasPrev
+    // Index 1 if hasPrev
+    
+    final int expectedIndex = hasPrev ? 1 : 0;
+    
+    if (idx == expectedIndex) return; // We are where we should be
+    
+    // If we are here, we moved!
+    if (idx > expectedIndex) {
+      // Moved forward -> Next
+      if (hasNext) {
+        debugPrint('System Next detected');
+        next();
+      }
+    } else if (idx < expectedIndex) {
+      // Moved backward -> Prev
+      if (hasPrev) {
+        debugPrint('System Prev detected');
+        prev();
+      }
+    }
   }
 
   void _startHeartbeat() {
@@ -623,11 +699,51 @@ class PlayerService extends ChangeNotifier {
         artUri: item.coverUrl.isNotEmpty ? Uri.tryParse(item.coverUrl) : null,
         extras: {'platform': item.platform},
       );
+
+      // Build Triple Source: [Prev, Current, Next]
+      final sources = <AudioSource>[];
+      int initialIndex = 0;
+
+      // 1. Add Prev (if exists)
+      if (hasPrev) {
+        final prevItem = _queue[_index - 1];
+        sources.add(AudioSource.uri(
+          Uri.parse(picked), // Reuse current URI to prevent load error
+          tag: MediaItem(
+            id: prevItem.shareUrl,
+            title: prevItem.name,
+            artist: prevItem.artist,
+            artUri: prevItem.coverUrl.isNotEmpty ? Uri.tryParse(prevItem.coverUrl) : null,
+            extras: {'platform': prevItem.platform},
+          ),
+        ));
+        initialIndex = 1; // Play index 1 (Current)
+      }
+
+      // 2. Add Current
+      sources.add(AudioSource.uri(Uri.parse(picked), tag: tag));
+
+      // 3. Add Next (if exists)
+      if (hasNext) {
+        final nextItem = _queue[_index + 1];
+        sources.add(AudioSource.uri(
+          Uri.parse(picked), // Reuse current URI
+          tag: MediaItem(
+            id: nextItem.shareUrl,
+            title: nextItem.name,
+            artist: nextItem.artist,
+            artUri: nextItem.coverUrl.isNotEmpty ? Uri.tryParse(nextItem.coverUrl) : null,
+            extras: {'platform': nextItem.platform},
+          ),
+        ));
+      }
       
       // print('Attempting setAudioSource: $picked');
       try {
-        final source = AudioSource.uri(Uri.parse(picked), tag: tag);
-        await _player!.setAudioSource(source);
+        await _player!.setAudioSource(
+          ConcatenatingAudioSource(children: sources),
+          initialIndex: initialIndex,
+        );
       } catch (e) {
         // print('Audio setUrl error ($picked): $e');
         
@@ -638,6 +754,7 @@ class PlayerService extends ChangeNotifier {
 
         if (picked != r.best.url && r.best.url.isNotEmpty) {
            try {
+             // Fallback logic remains simple (single source) for now to minimize complexity in error case
              final fallbackSource = AudioSource.uri(Uri.parse(r.best.url), tag: tag);
              await _player!.setAudioSource(fallbackSource);
            } catch (e2) {
