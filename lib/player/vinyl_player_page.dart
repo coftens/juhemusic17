@@ -1464,24 +1464,24 @@ class _OnePageScrollPhysics extends PageScrollPhysics {
     final portion = position.pixels / position.viewportDimension;
     
     // Explicitly target the immediate next/prev page index
-    // instead of allowing momentum to skip pages.
     double target;
     if (velocity.abs() < tolerance.velocity) {
       // Low velocity: Snap to nearest
       target = portion.roundToDouble();
     } else {
-      // High velocity: Restrict to exactly one page flip
+      // High velocity: Restrict to exactly one page flip relative to current pixel position
       if (velocity > 0) {
-        // Swipe left (forward)
-        target = portion.floorToDouble() + 1;
+        // Swipe left (forward) -> Ceil (e.g. 1.1 -> 2.0)
+        target = portion.ceilToDouble();
       } else {
-        // Swipe right (backward)
-        target = portion.ceilToDouble() - 1;
+        // Swipe right (backward) -> Floor (e.g. 1.9 -> 1.0)
+        target = portion.floorToDouble();
       }
     }
     
-    // Clamp to valid range (though it might be overkill since physics handles bounds)
-    // Actually we just want to create spring to that target
+    // Prevent target from being equal to current pixels (avoid stuck)
+    // and ensure we don't return null if velocity is high but we are exactly on page
+    
     final targetPixels = target * position.viewportDimension;
     
     if (targetPixels != position.pixels) {
