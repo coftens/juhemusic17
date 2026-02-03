@@ -9,6 +9,8 @@ import 'now_playing_page.dart';
 
 class MiniPlayerBar extends StatelessWidget {
   const MiniPlayerBar({super.key});
+  
+  static bool _isNavigating = false;
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +41,11 @@ class MiniPlayerBar extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(24),
                   onTap: () {
+                    if (_isNavigating) return;
+                    _isNavigating = true;
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => NowPlayingPage(item: it)),
-                    );
+                    ).then((_) => _isNavigating = false);
                   },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

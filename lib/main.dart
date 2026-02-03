@@ -19,7 +19,8 @@ Future<void> main() async {
   await AuthSession.instance.load();
   // v5.0: Disabled restoreState - app now starts with empty queue
   // Restore last playback snapshot (queue/index/position) and re-parse if needed.
-  // unawaited(PlayerService.instance.restoreState());
+  // Restore last playback snapshot (queue/index/position) and re-parse if needed.
+  unawaited(PlayerService.instance.restoreState());
   runApp(const App());
 }
 
