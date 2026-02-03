@@ -6,6 +6,8 @@ import '../app/app_tabs.dart';
 import '../audio/player_service.dart';
 import '../player/now_playing_page.dart';
 import '../playlist/playlist_page.dart';
+import '../search/search_page.dart';
+import '../search/search_page_route.dart';
 import '../widgets/cached_cover_image.dart';
 
 class HomePage extends StatefulWidget {
@@ -130,7 +132,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                             ),
                           ),
                           IconButton(
-                            onPressed: () { AppTabs.go(1); },
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                SearchPageRoute(
+                                  child: SearchPage(onBackToHome: () => Navigator.of(context).pop()),
+                                ),
+                              );
+                            },
                             icon: const Icon(Icons.search_rounded),
                             color: Colors.black87,
                           ),

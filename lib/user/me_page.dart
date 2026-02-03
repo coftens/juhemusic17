@@ -11,6 +11,8 @@ import '../storage/user_library.dart';
 import '../playlist/playlist_page.dart';
 import '../widgets/cached_cover_image.dart';
 import 'library_playlist_page.dart';
+import '../search/search_page.dart';
+import '../search/search_page_route.dart';
 
 
 class MePage extends StatefulWidget {
@@ -159,7 +161,13 @@ class _MePageState extends State<MePage> {
                       ),
                       const Spacer(),
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            SearchPageRoute(
+                              child: SearchPage(onBackToHome: () => Navigator.of(context).pop()),
+                            ),
+                          );
+                        },
                         icon: const Icon(Icons.search_rounded),
                         color: Colors.white,
                       ),
